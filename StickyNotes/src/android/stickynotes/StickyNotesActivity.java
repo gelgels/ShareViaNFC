@@ -50,11 +50,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 
 public class StickyNotesActivity extends Activity {
-    private static final String TAG = "stickynotes";
+    private static final String TAG = "stickynotes";	//for logging
     private boolean mResumed = false;
     private boolean mWriteMode = false;
     NfcAdapter mNfcAdapter;
@@ -75,67 +74,77 @@ public class StickyNotesActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
-
         setContentView(R.layout.main);
-        findViewById(R.id.write_tag).setOnClickListener(mTagWriter);
-        findViewById(R.id.scan_wifi).setOnClickListener(mWifiButton);
-        findViewById(R.id.clear_tv).setOnClickListener(mClearTv);
-        mNote = ((EditText) findViewById(R.id.note));
-        mNote.addTextChangedListener(mTextWatcher);
         
-        textStatus = (TextView) findViewById(R.id.text_view);
-		wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+        if (mNfcAdapter == null)
+        	toast("No NFC support!");
         
-		WifiInfo info = wifi.getConnectionInfo();
-		textStatus.setText("");
-		textStatus.append("WiFi Status: " + info.toString());
-		
-		List<WifiConfiguration> configs = wifi.getConfiguredNetworks();
-		for (WifiConfiguration config : configs) {
-			textStatus.append("\n" + config.toString());
-		}
-		
-		if (receiver == null)
-			receiver = new WiFiScanReceiver(this);
-
-		//registerReceiver(receiver, new IntentFilter(
-			//	WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-		
-		// Handle all of our received NFC intents in this activity.
-        mNfcPendingIntent = PendingIntent.getActivity(this, 0,
-                new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
-
-        // Intent filters for reading a note from a tag or exchanging over p2p.
-        IntentFilter ndefDetected = new IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED);
-        try {
-            ndefDetected.addDataType("text/plain");
-        } catch (MalformedMimeTypeException e) { }
-        mNdefExchangeFilters = new IntentFilter[] { ndefDetected };
-
-        // Intent filters for writing to a tag
-        IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
-        mWriteTagFilters = new IntentFilter[] { tagDetected };
+        if (mNfcAdapter != null) //device NFC capable
+        {
+	        findViewById(R.id.write_tag).setOnClickListener(mTagWriter);
+	        findViewById(R.id.scan_wifi).setOnClickListener(mWifiButton);
+	        findViewById(R.id.clear_tv).setOnClickListener(mClearTv);
+	        mNote = ((EditText) findViewById(R.id.note));
+	        mNote.addTextChangedListener(mTextWatcher);
+	        
+	        textStatus = (TextView) findViewById(R.id.text_view);
+			wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+	        
+			WifiInfo info = wifi.getConnectionInfo();
+			textStatus.setText("");
+			textStatus.append("WiFi Status: " + info.toString());
+			
+			List<WifiConfiguration> configs = wifi.getConfiguredNetworks();
+			for (WifiConfiguration config : configs) {
+				textStatus.append("\n" + config.toString());
+			}
+			
+			if (receiver == null)
+				receiver = new WiFiScanReceiver(this);
+	
+			//registerReceiver(receiver, new IntentFilter(
+				//	WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+			
+			// Handle all of our received NFC intents in this activity.
+	        mNfcPendingIntent = PendingIntent.getActivity(this, 0,
+	                new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
+	
+	        // Intent filters for reading a note from a tag or exchanging over p2p.
+	        IntentFilter ndefDetected = new IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED);
+	        try {
+	            ndefDetected.addDataType("text/plain");
+	        } catch (MalformedMimeTypeException e) { }
+	        mNdefExchangeFilters = new IntentFilter[] { ndefDetected };
+	
+	        // Intent filters for writing to a tag
+	        IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
+	        mWriteTagFilters = new IntentFilter[] { tagDetected };
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         mResumed = true;
-        // Sticky notes received from Android
-        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
-            NdefMessage[] messages = getNdefMessages(getIntent());
-            byte[] payload = messages[0].getRecords()[0].getPayload();
-            setNoteBody(new String(payload));
-            setIntent(new Intent()); // Consume this intent.
+        if (mNfcAdapter != null) { //device NFC capable
+	        // Sticky notes received from Android
+	        if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
+	            NdefMessage[] messages = getNdefMessages(getIntent());
+	            byte[] payload = messages[0].getRecords()[0].getPayload();
+	            setNoteBody(new String(payload));
+	            setIntent(new Intent()); // Consume this intent.
+	        }
+	        enableNdefExchangeMode();
         }
-        enableNdefExchangeMode();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         mResumed = false;
-        mNfcAdapter.disableForegroundNdefPush(this);
+        if (mNfcAdapter != null) { //device NFC capable
+        	mNfcAdapter.disableForegroundNdefPush(this);
+        }
     }
 
     @Override
@@ -282,7 +291,10 @@ public class StickyNotesActivity extends Activity {
 
     @Override
 	public void onStop() {
-		unregisterReceiver(receiver);
+    	super.onStop();
+    	if (receiver != null) {
+    		unregisterReceiver(receiver);
+    	}
 	}
     
     private void enableNdefExchangeMode() {

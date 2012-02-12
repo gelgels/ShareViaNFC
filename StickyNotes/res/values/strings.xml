@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="hello">Hello World, StickyNotesActivity!</string>
-    <string name="app_name">Sticky Notes</string>
+    <string name="app_name">I\'d Tap That</string>
     <string name="write_to_tag">Write to Tag</string>
-    <string name="default_note_text">Edit me!</string>
+    <string name="default_note_hint">Tap to enter a message</string>
 </resources>
