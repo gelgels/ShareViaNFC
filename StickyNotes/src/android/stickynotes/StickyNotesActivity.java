@@ -61,7 +61,7 @@ public class StickyNotesActivity extends Activity {
 	
     
     WifiManager wifi;
-	BroadcastReceiver receiver;
+	
 
 	TextView textStatus;
     
@@ -99,9 +99,6 @@ public class StickyNotesActivity extends Activity {
 				textStatus.append("\n" + config.toString());
 			}
 			
-			if (receiver == null)
-				receiver = new WiFiScanReceiver(this);
-	
 			//registerReceiver(receiver, new IntentFilter(
 				//	WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
 			
@@ -292,9 +289,6 @@ public class StickyNotesActivity extends Activity {
     @Override
 	public void onStop() {
     	super.onStop();
-    	if (receiver != null) {
-    		unregisterReceiver(receiver);
-    	}
 	}
     
     private void enableNdefExchangeMode() {
