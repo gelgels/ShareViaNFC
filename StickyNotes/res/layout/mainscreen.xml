@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" 
+    android:padding="5dip">
+
+    <ImageButton
+            android:id="@+id/twitter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+	    	android:layout_alignParentTop="true"
+    		android:layout_alignParentRight="true"
+    		android:layout_marginTop="10dip"
+    		android:layout_marginBottom="10dip"
+            android:src="@drawable/twitter" 
+    		android:onClick="onTwitterClicked" />	 
+            
+   	<ImageButton
+            android:id="@+id/facebook"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+	    	android:layout_alignParentTop="true"
+	    	android:layout_toLeftOf="@id/twitter"
+    		android:layout_marginTop="10dip"
+    		android:layout_marginRight="5dip"
+    		android:layout_marginBottom="10dip"
+            android:src="@drawable/fb"  
+    		android:onClick="onFacebookClicked" />
+    
+    <ImageButton
+            android:id="@+id/foursquare"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+	    	android:layout_below="@id/twitter"
+    		android:layout_alignParentRight="true"
+    		android:layout_marginBottom="10dip"
+            android:src="@drawable/foursquare" 
+    		android:onClick="onFoursquareClicked" />
+          
+    <ImageButton
+            android:id="@+id/wifi"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+	    	android:layout_below="@id/facebook"
+	    	android:layout_toRightOf="@id/note"
+    		android:layout_marginRight="5dip"
+    		android:layout_marginBottom="10dip"
+            android:src="@drawable/wifi" 
+    		android:onClick="onWifiClicked" />
+    
+    <Button
+            android:id="@+id/writeToTag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+        	android:layout_below="@id/wifi"
+        	android:layout_toRightOf="@id/note"
+    		android:layout_marginBottom="15dip"
+            android:text="Write To Tag" 
+    		android:onClick="onWriteClicked" /> 
+             
+    <ScrollView
+        android:id="@+id/scroll_view"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+	    android:layout_below="@id/writeToTag"
+	    android:layout_alignParentBottom="true" >
+	    <TextView
+        	android:id="@+id/text_view"
+        	android:layout_width="fill_parent"
+        	android:layout_height="fill_parent"
+	        android:text="Scan for info..." />
+    </ScrollView>
+    
+    <EditText
+        android:id="@+id/note"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+	    android:layout_alignParentTop="true"
+	    android:layout_toLeftOf="@id/facebook"
+	    android:layout_above="@id/scroll_view"
+    	android:layout_marginBottom="5dip"
+    	android:layout_marginRight="10dip" 
+        android:gravity="top"
+        android:hint="@string/default_note_hint" />
+         
+</RelativeLayout>

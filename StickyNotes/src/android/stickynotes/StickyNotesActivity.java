@@ -19,7 +19,6 @@ package android.stickynotes;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -59,10 +58,7 @@ public class StickyNotesActivity extends Activity {
     NfcAdapter mNfcAdapter;
     EditText mNote;
 	
-    
     WifiManager wifi;
-	
-
 	TextView textStatus;
     
     PendingIntent mNfcPendingIntent;
@@ -74,16 +70,15 @@ public class StickyNotesActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
-        setContentView(R.layout.main);
+        setContentView(R.layout.mainscreen);
         
         if (mNfcAdapter == null)
         	toast("No NFC support!");
         
         if (mNfcAdapter != null) //device NFC capable
         {
-	        findViewById(R.id.write_tag).setOnClickListener(mTagWriter);
-	        findViewById(R.id.scan_wifi).setOnClickListener(mWifiButton);
-	        findViewById(R.id.clear_tv).setOnClickListener(mClearTv);
+	     //   findViewById(R.id.scan_wifi).setOnClickListener(mWifiButton);
+	     //   findViewById(R.id.clear_tv).setOnClickListener(mClearTv);
 	        mNote = ((EditText) findViewById(R.id.note));
 	        mNote.addTextChangedListener(mTextWatcher);
 	        
@@ -98,10 +93,7 @@ public class StickyNotesActivity extends Activity {
 			for (WifiConfiguration config : configs) {
 				textStatus.append("\n" + config.toString());
 			}
-			
-			//registerReceiver(receiver, new IntentFilter(
-				//	WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-			
+
 			// Handle all of our received NFC intents in this activity.
 	        mNfcPendingIntent = PendingIntent.getActivity(this, 0,
 	                new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
@@ -178,7 +170,7 @@ public class StickyNotesActivity extends Activity {
             }
         }
     };
-    public View.OnClickListener mWifiButton = new View.OnClickListener() {
+    /*public View.OnClickListener mWifiButton = new View.OnClickListener() {
 		
 		@Override
 		public void onClick(View v) {
@@ -194,24 +186,7 @@ public class StickyNotesActivity extends Activity {
 			textStatus.setText("");
 			readWepConfig();
 			}
-	};
-    private View.OnClickListener mTagWriter = new View.OnClickListener() {
-        @Override
-        public void onClick(View arg0) {
-            // Write to a tag for as long as the dialog is shown.
-            disableNdefExchangeMode();
-            enableTagWriteMode();
-
-            new AlertDialog.Builder(StickyNotesActivity.this).setTitle("Touch tag to write")
-                    .setOnCancelListener(new DialogInterface.OnCancelListener() {
-                        @Override
-                        public void onCancel(DialogInterface dialog) {
-                            disableTagWriteMode();
-                            enableNdefExchangeMode();
-                        }
-                    }).create().show();
-        }
-    };
+	};*/
 
     private void promptForContent(final NdefMessage msg) {
         new AlertDialog.Builder(this).setTitle("Replace current content?")
@@ -438,4 +413,41 @@ public class StickyNotesActivity extends Activity {
     private void toast(String text) {
         Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
     }
+    
+    /**implementing buttons*/
+	public void onFacebookClicked(View view)
+	{  //TODO complete
+		toast("facebook");
+	}  
+	
+	public void onTwitterClicked(View view)
+	{  //TODO complete
+		toast("twitter");
+	} 
+	
+	public void onFoursquareClicked(View view)
+	{  //TODO complete
+		toast("foursquare");
+	} 
+	
+	public void onWifiClicked(View view)
+	{  //TODO complete
+		toast("wifi");
+	} 
+	
+	public void onWriteClicked(View view)
+	{  
+		// Write to a tag for as long as the dialog is shown.
+        disableNdefExchangeMode();
+        enableTagWriteMode();
+
+        new AlertDialog.Builder(StickyNotesActivity.this).setTitle("Touch tag to write")
+                .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        disableTagWriteMode();
+                        enableNdefExchangeMode();
+                    }
+                }).create().show();
+	}  
 }
