@@ -69,7 +69,7 @@
         	android:id="@+id/text_view"
         	android:layout_width="fill_parent"
         	android:layout_height="fill_parent"
-	        android:text="Scan for info..." />
+	        android:text="Select a mode or write a message!" />
     </ScrollView>
     
     <EditText

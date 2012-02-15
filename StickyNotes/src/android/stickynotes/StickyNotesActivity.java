@@ -57,7 +57,8 @@ public class StickyNotesActivity extends Activity {
     private boolean mWriteMode = false;
     NfcAdapter mNfcAdapter;
     EditText mNote;
-	
+	boolean wifiMode;
+	int wifiConfigIndex;
     WifiManager wifi;
 	TextView textStatus;
     
@@ -75,25 +76,21 @@ public class StickyNotesActivity extends Activity {
         if (mNfcAdapter == null)
         	toast("No NFC support!");
         
+        wifiMode = false;
+        wifiConfigIndex = -1; // First click of Wifi Button sets this to 0...Yeah poor style but w/e
+        wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+        
+        textStatus = (TextView) findViewById(R.id.text_view);
+        
+		textStatus.setText("");
+		textStatus.append("Choose your mode or write a message!");
+        mNote = ((EditText) findViewById(R.id.note));
+		
+		
         if (mNfcAdapter != null) //device NFC capable
         {
-	     //   findViewById(R.id.scan_wifi).setOnClickListener(mWifiButton);
-	     //   findViewById(R.id.clear_tv).setOnClickListener(mClearTv);
-	        mNote = ((EditText) findViewById(R.id.note));
 	        mNote.addTextChangedListener(mTextWatcher);
 	        
-	        textStatus = (TextView) findViewById(R.id.text_view);
-			wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-	        
-			WifiInfo info = wifi.getConnectionInfo();
-			textStatus.setText("");
-			textStatus.append("WiFi Status: " + info.toString());
-			
-			List<WifiConfiguration> configs = wifi.getConfiguredNetworks();
-			for (WifiConfiguration config : configs) {
-				textStatus.append("\n" + config.toString());
-			}
-
 			// Handle all of our received NFC intents in this activity.
 	        mNfcPendingIntent = PendingIntent.getActivity(this, 0,
 	                new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
@@ -145,8 +142,14 @@ public class StickyNotesActivity extends Activity {
         }
 
         // Tag writing mode
-        if (mWriteMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) {
+        if (mWriteMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) 
+        {
             Tag detectedTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+            //TODO: Decide button context handling scheme
+            //We need some kind of context switch here or inside getNoteAsNdef
+            //As it is, what is written in the note gets packed into the NDEF payload. 
+            // Ideally, if we're passing facebook/twitter/4square/wifi info across, we dont
+            //		want that stuff visible to the user and inside the note. 
             writeTag(getNoteAsNdef(), detectedTag);
         }
     }
@@ -170,23 +173,6 @@ public class StickyNotesActivity extends Activity {
             }
         }
     };
-    /*public View.OnClickListener mWifiButton = new View.OnClickListener() {
-		
-		@Override
-		public void onClick(View v) {
-			toast("Wifi Scan");
-			textStatus.setText("");
-			readWepConfig();
-			}
-	};
-	public View.OnClickListener mClearTv = new View.OnClickListener() {
-		
-		@Override
-		public void onClick(View v) {
-			textStatus.setText("");
-			readWepConfig();
-			}
-	};*/
 
     private void promptForContent(final NdefMessage msg) {
         new AlertDialog.Builder(this).setTitle("Replace current content?")
@@ -402,7 +388,7 @@ public class StickyNotesActivity extends Activity {
         //WifiManager  wifiManag = (WifiManager) this.getSystemService(WIFI_SERVICE);
         boolean res1 = wifi.setWifiEnabled(true);
         int res = wifi.addNetwork(wc);
-        textStatus.append("add Network returned " + res +"\n");
+        textStatus.append("add Network returned " + res + "enabled: " + res1 + "\n");
         boolean es = wifi.saveConfiguration();
         textStatus.append("saveConfiguration returned " + es +"\n");
         boolean b = wifi.enableNetwork(res, true);   
@@ -418,21 +404,46 @@ public class StickyNotesActivity extends Activity {
 	public void onFacebookClicked(View view)
 	{  //TODO complete
 		toast("facebook");
+		wifiMode = false; // This is only temporary until we decide a context handling thingy
 	}  
 	
 	public void onTwitterClicked(View view)
 	{  //TODO complete
 		toast("twitter");
+		wifiMode = false; // This is only temporary until we decide a context handling thingy
 	} 
 	
 	public void onFoursquareClicked(View view)
 	{  //TODO complete
 		toast("foursquare");
+		wifiMode = false; // This is only temporary until we decide a context handling thingy
 	} 
 	
 	public void onWifiClicked(View view)
-	{  //TODO complete
-		toast("wifi");
+	{  //TODO In Progress
+		wifiMode = true;
+		wifiConfigIndex++;
+		List<WifiConfiguration> configs = wifi.getConfiguredNetworks();
+        int i = configs.size();
+        if(wifiConfigIndex >= i)
+        	{wifiConfigIndex = 0;}
+        if(i == 0)
+        {textStatus.setText("No networks saved. Create one to share!\n");}
+        else
+        {
+        int count = 0;
+        textStatus.setText("");
+       	textStatus.append("Tap again to cycle network to share\n");
+        for(WifiConfiguration config : configs)
+        {
+        	char selected = 'O';
+        	if(count == wifiConfigIndex)
+        	{selected = 'X';}
+        	textStatus.append("[" + selected + "]" + config.SSID + "\n" );
+        	count++;
+        	}
+        }
+		
 	} 
 	
 	public void onWriteClicked(View view)
