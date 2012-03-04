@@ -180,17 +180,7 @@ public class StickyNotesActivity extends Activity {
                 @Override
                 public void onClick(DialogInterface arg0, int arg1) {
                     String body = new String(msg.getRecords()[0].getPayload());
-                    if(body.contains("ssid=") && body.contains("pw="))
-                    {
-                    	textStatus.setText("");
-                    	textStatus.append("Network Info Found!\n");
-                    	String ssid = body.substring(5, body.indexOf('\n'));
-                    	String pw = body.substring(body.indexOf('\n') + 4);
-                    	textStatus.append("SSID: " + ssid + " pw: " + pw + "\n");
-                    	saveWepConfig(ssid, pw);
-                    	setNoteBody("Wifi info has been added to your phone!");
-                    }
-                    	
+                    detectWifi(body);
                     setNoteBody(body);
                 }
             })
@@ -208,8 +198,15 @@ public class StickyNotesActivity extends Activity {
         text.append(body);
     }
 
-    private NdefMessage getNoteAsNdef() {
-        byte[] textBytes = mNote.getText().toString().getBytes();
+    private NdefMessage getNoteAsNdef() 
+    {
+    	byte[] textBytes = mNote.getText().toString().getBytes();
+    	if(wifiMode)
+    	{
+    		String temp = mNote.getText().toString() + "\n" + wifi.getConfiguredNetworks().get(wifiConfigIndex).toString();
+    		textBytes = temp.getBytes();
+    		textStatus.setText("Following NDEF created:\n" + temp);
+    	}
         NdefRecord textRecord = new NdefRecord(NdefRecord.TNF_MIME_MEDIA, "text/plain".getBytes(),
                 new byte[] {}, textBytes);
         return new NdefMessage(new NdefRecord[] {
@@ -361,15 +358,52 @@ public class StickyNotesActivity extends Activity {
         }
     }
     
-    void saveWepConfig(String SSID, String passkey)
+    int saveWepConfig(String input)
     {
         WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
         WifiConfiguration wc = new WifiConfiguration(); 
-        wc.SSID = "\"" + SSID + "\""; //IMP! This should be in Quotes!!
-        wc.hiddenSSID = false;
+        String text = input;
+        String password = text.substring(0, text.indexOf("\n"));
+        text = text.substring(text.indexOf("\n")+1);
         
+        String ssid = text.substring(text.indexOf("SSID: ") + 6, text.indexOf("BSSID: ") - 1);
+        wc.SSID = ssid;
+        String bssid = text.substring(text.indexOf("BSSID: ") + 7, text.indexOf("PRIO: ") - 1);
+        if(bssid.equals("null"))
+        	wc.BSSID = "";
+        else
+        	wc.BSSID = bssid;
+        int prio = Integer.parseInt(text.substring(text.indexOf("PRIO: " + 6), text.indexOf("\n")));
+        wc.priority = prio;
+        
+        text = text.substring(text.indexOf("\n")+1);
+        
+        String keymgmt = text.substring(0, text.indexOf("Protocols: "));
+        if(keymgmt.contains("NONE"))
+        	wc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
+        else if(keymgmt.contains("WPA"))
+        	wc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        
+        String protocols = text.substring(text.indexOf("Protocols: "), text.indexOf("\nAuth"));
+        if(protocols.contains("WPA"))
+        	wc.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
+        if(protocols.contains("RSN"))
+    	wc.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
+       
+        text = text.substring(text.indexOf("\nAuth")+1);
+        String authalg = text.substring(0,text.indexOf("\nPairwise"));
+        
+        text = text.substring(text.indexOf("\nPairwise")+1);
+        String pairwise = text.substring(0,text.indexOf("\nGroup"));
+        
+        text = text.substring(text.indexOf("\nGroup")+1);
+        String group = text.substring(0,text.indexOf("\nPSK"));
+        
+        
+        wc.hiddenSSID = false;
+        wc.BSSID = "";
         wc.status = WifiConfiguration.Status.DISABLED;     
-        wc.priority = 40;
+        wc.priority = 0;
         wc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
         wc.allowedProtocols.set(WifiConfiguration.Protocol.RSN); 
         wc.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
@@ -382,7 +416,7 @@ public class StickyNotesActivity extends Activity {
         wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
         wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP);
 
-        wc.wepKeys[0] = "\"" + passkey + "\""; //This is the WEP Password
+        wc.wepKeys[0] = "\"" + password + "\""; //This is the WEP Password
         wc.wepTxKeyIndex = 0;
 
         //WifiManager  wifiManag = (WifiManager) this.getSystemService(WIFI_SERVICE);
@@ -393,7 +427,7 @@ public class StickyNotesActivity extends Activity {
         textStatus.append("saveConfiguration returned " + es +"\n");
         boolean b = wifi.enableNetwork(res, true);   
         textStatus.append("enableNetwork returned " + b +"\n");  
-
+        return 1; // Success
     }
     
     private void toast(String text) {
@@ -431,20 +465,40 @@ public class StickyNotesActivity extends Activity {
         {textStatus.setText("No networks saved. Create one to share!\n");}
         else
         {
-        int count = 0;
-        textStatus.setText("");
-       	textStatus.append("Tap again to cycle network to share\n");
-        for(WifiConfiguration config : configs)
-        {
-        	char selected = 'O';
-        	if(count == wifiConfigIndex)
-        	{selected = 'X';}
-        	textStatus.append("[" + selected + "]" + config.SSID + "\n" );
-        	count++;
+        	int count = 0;
+        	textStatus.setText("");
+       		textStatus.append("Tap again to cycle network to share\n");
+       		for(WifiConfiguration config : configs)
+        	{
+       			char selected = 'O';
+        		if(count == wifiConfigIndex)
+        		{selected = 'X';}
+        		textStatus.append("[" + selected + "]" + config.SSID + "\n" );
+        		count++;
         	}
+        
+       		textStatus.setText(configs.get(wifiConfigIndex).toString());
+       		
+       		Editable text = mNote.getText();
+       		text.clear();
+       		text.append("Type the network password here!");//configs.get(wifiConfigIndex).toString());
         }
-		
+        	
 	} 
+	
+	public boolean detectWifi(String body)
+	{
+		if(wifiMode == true && body.contains("SSID:") && body.contains("ID:") && body.contains("BSSID:") && body.contains("PRIO:")&& body.contains("KeyMgmt:") && body.contains("Protocols"))
+        {
+        	textStatus.setText("");
+        	textStatus.append("Network Info Found!\n");
+        	saveWepConfig(body);
+        	//setNoteBody("Wifi info has been added to your phone!");
+        	return true;
+        }
+		return false;
+		
+	}
 	
 	public void onWriteClicked(View view)
 	{  
