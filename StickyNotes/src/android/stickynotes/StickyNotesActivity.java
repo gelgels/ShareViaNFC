@@ -363,6 +363,9 @@ public class StickyNotesActivity extends Activity {
         WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
         WifiConfiguration wc = new WifiConfiguration(); 
         String text = input;
+        if(text.indexOf("SSID: ") == -1 || text.indexOf("BSSID: ") == -1 || text.indexOf("Priority: ") == -1 || text.indexOf("Protocols:") == -1 || text.indexOf("\nAuthalg") == -1 || text.indexOf("\nPairwise") == -1 || text.indexOf("\nGroup") == -1 )
+        	return 0;
+        
         String password = text.substring(0, text.indexOf("\n"));
         text = text.substring(text.indexOf("\n")+1);
         
@@ -393,28 +396,31 @@ public class StickyNotesActivity extends Activity {
         text = text.substring(text.indexOf("\nAuth")+1);
         String authalg = text.substring(0,text.indexOf("\nPairwise"));
         
+        if(authalg.contains("OPEN"))
+        	wc.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
+        if(authalg.contains("SHARED"))
+        	wc.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.SHARED);
+        
         text = text.substring(text.indexOf("\nPairwise")+1);
         String pairwise = text.substring(0,text.indexOf("\nGroup"));
         
+        if(pairwise.contains("CCMP"))
+        	wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
+        if(pairwise.contains("TKIP"))
+            wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP);
+        
         text = text.substring(text.indexOf("\nGroup")+1);
-        String group = text.substring(0,text.indexOf("\nPSK"));
-        
-        
+        String groupcipher = text.substring(0,text.indexOf("\nPSK"));
+        if(groupcipher.contains("WEP40"))
+        	 wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.WEP40);
+        if(groupcipher.contains("WEP40"))
+        	wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.WEP104);
+        if(groupcipher.contains("WEP40"))
+        	wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
+        if(groupcipher.contains("WEP40"))
+        	wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP);
         wc.hiddenSSID = false;
-        wc.BSSID = "";
         wc.status = WifiConfiguration.Status.DISABLED;     
-        wc.priority = 0;
-        wc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
-        wc.allowedProtocols.set(WifiConfiguration.Protocol.RSN); 
-        wc.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
-        wc.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
-        wc.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.SHARED);
-        wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
-        wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP);
-        wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.WEP40);
-        wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.WEP104);
-        wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
-        wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP);
 
         wc.wepKeys[0] = "\"" + password + "\""; //This is the WEP Password
         wc.wepTxKeyIndex = 0;
