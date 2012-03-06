@@ -43,13 +43,23 @@ import android.os.Parcelable;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
 import java.util.List;
+
+import twitter4j.Query;
+import twitter4j.QueryResult;
+import twitter4j.Tweet;
+import twitter4j.Twitter;
+import twitter4j.TwitterException;
+import twitter4j.TwitterFactory;
+import twitter4j.conf.ConfigurationBuilder;
 
 public class StickyNotesActivity extends Activity {
     private static final String TAG = "stickynotes";	//for logging
@@ -61,6 +71,11 @@ public class StickyNotesActivity extends Activity {
 	int wifiConfigIndex;
     WifiManager wifi;
 	TextView textStatus;
+	
+	String TwitAccount;
+	String TwitUser;
+	boolean twitterMode;
+
     
     PendingIntent mNfcPendingIntent;
     IntentFilter[] mWriteTagFilters;
@@ -86,7 +101,10 @@ public class StickyNotesActivity extends Activity {
 		textStatus.append("Choose your mode or write a message!");
         mNote = ((EditText) findViewById(R.id.note));
 		
-		
+        TwitAccount = ""; //this will set your saved Twitter account to nothing when started
+	twitterMode = false;
+	
+	
         if (mNfcAdapter != null) //device NFC capable
         {
 	        mNote.addTextChangedListener(mTextWatcher);
@@ -142,7 +160,7 @@ public class StickyNotesActivity extends Activity {
         }
 
         // Tag writing mode
-        if (mWriteMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) 
+        if (mWriteMode && !twitterMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) 
         {
             Tag detectedTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
             //TODO: Decide button context handling scheme
@@ -151,6 +169,15 @@ public class StickyNotesActivity extends Activity {
             // Ideally, if we're passing facebook/twitter/4square/wifi info across, we dont
             //		want that stuff visible to the user and inside the note. 
             writeTag(getNoteAsNdef(), detectedTag);
+        } if (mWriteMode && twitterMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) 
+        {
+            Tag detectedTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+            //TODO: Decide button context handling scheme
+            //We need some kind of context switch here or inside getNoteAsNdef
+            //As it is, what is written in the note gets packed into the NDEF payload. 
+            // Ideally, if we're passing facebook/twitter/4square/wifi info across, we dont
+            //		want that stuff visible to the user and inside the note. 
+            writeTag(getNoteAsNdef(TwitAccount), detectedTag);
         }
     }
 
@@ -173,7 +200,28 @@ public class StickyNotesActivity extends Activity {
             }
         }
     };
-
+   private void getTweets(String twit)
+    {
+    	wifi.setWifiEnabled(true);
+    	ConfigurationBuilder cb = new ConfigurationBuilder();
+    	cb.setDebugEnabled(true)
+    	  .setOAuthConsumerKey("TvywVhWx7r7QQev2UGfA4g")
+    	  .setOAuthConsumerSecret("Nv22zsyf1VS0vvi6hwAMyvJk9LUtSXwRUB4xwp2gRs");
+    	TwitterFactory tf = new TwitterFactory(cb.build());
+    	Twitter twitter = tf.getInstance();
+        try {
+            QueryResult result = twitter.search(new Query(twit));
+            List<Tweet> tweets = result.getTweets();
+            textStatus.setText("");
+           	textStatus.append("Recent tweets about '"+twit+"':\n");
+            for (Tweet tweet : tweets) {
+                textStatus.append("@" + tweet.getFromUser() + " - " + tweet.getText() +"sdg\n\n");
+            }
+        } catch (TwitterException te) {
+            te.printStackTrace();
+           textStatus.append("Failed to search tweets: " + te.getMessage() + " " + twit);
+        }
+    }
     private void promptForContent(final NdefMessage msg) {
         new AlertDialog.Builder(this).setTitle("Replace current content?")
             .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
@@ -181,7 +229,13 @@ public class StickyNotesActivity extends Activity {
                 public void onClick(DialogInterface arg0, int arg1) {
                     String body = new String(msg.getRecords()[0].getPayload());
                     detectWifi(body);
-                    setNoteBody(body);
+                    if(body.contains("twituser=") && twitterMode)
+                    {
+                    	String twitUse = body.substring(9);
+                    	getTweets(twitUse);
+                    }
+                    if(!twitterMode)	
+                    	setNoteBody(body);
                 }
             })
             .setNegativeButton("No", new DialogInterface.OnClickListener() {
@@ -207,6 +261,14 @@ public class StickyNotesActivity extends Activity {
     		textBytes = temp.getBytes();
     		textStatus.setText("Following NDEF created:\n" + temp);
     	}
+        NdefRecord textRecord = new NdefRecord(NdefRecord.TNF_MIME_MEDIA, "text/plain".getBytes(),
+                new byte[] {}, textBytes);
+        return new NdefMessage(new NdefRecord[] {
+            textRecord
+        });
+    }
+     private NdefMessage getNoteAsNdef(String message) {
+        byte[] textBytes = message.getBytes();
         NdefRecord textRecord = new NdefRecord(NdefRecord.TNF_MIME_MEDIA, "text/plain".getBytes(),
                 new byte[] {}, textBytes);
         return new NdefMessage(new NdefRecord[] {
@@ -253,7 +315,10 @@ public class StickyNotesActivity extends Activity {
         mNfcAdapter.enableForegroundNdefPush(StickyNotesActivity.this, getNoteAsNdef());
         mNfcAdapter.enableForegroundDispatch(this, mNfcPendingIntent, mNdefExchangeFilters, null);
     }
-
+    private void enableNdefExchangeMode(String message) {
+        mNfcAdapter.enableForegroundNdefPush(StickyNotesActivity.this, getNoteAsNdef(message));
+        mNfcAdapter.enableForegroundDispatch(this, mNfcPendingIntent, mNdefExchangeFilters, null);
+    }
     private void disableNdefExchangeMode() {
         mNfcAdapter.disableForegroundNdefPush(this);
         mNfcAdapter.disableForegroundDispatch(this);
@@ -437,6 +502,7 @@ public class StickyNotesActivity extends Activity {
     /**implementing buttons*/
 	public void onFacebookClicked(View view)
 	{  //TODO complete
+		twitterMode = false;
 		toast("facebook");
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
 	}  
@@ -444,11 +510,135 @@ public class StickyNotesActivity extends Activity {
 	public void onTwitterClicked(View view)
 	{  //TODO complete
 		toast("twitter");
+		twitterMode = true;
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
+		if(TwitAccount == "")
+		{
+			//textStatus.setText("Twitter account name not stored!\n");
+			final FrameLayout fl = new FrameLayout(this);
+			final EditText input = new EditText(this); 
+			input.setGravity(Gravity.CENTER);
+			fl.addView(input, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.FILL_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+			input.setText("");
+			new AlertDialog.Builder(StickyNotesActivity.this).setTitle("Please choose an option: ")
+            .setPositiveButton("Read", new DialogInterface.OnClickListener(){			 
+			                @Override			 
+			                public void onClick(DialogInterface d, int which) {			 
+			                        d.dismiss();
+			                        //TwitUser = input.getText().toString();
+			                        //TwitAccount = "twituser=" + TwitUser;
+			                        //enableNdefExchangeMode(TwitAccount);
+			            			//setNoteBody(TwitAccount);
+			                }
+			        }).setNegativeButton("Write", new DialogInterface.OnClickListener(){
+		                @Override
+		                public void onClick(DialogInterface d, int which) {
+		                        d.dismiss();
+		               // }
+			        //}).create().show();
+			new AlertDialog.Builder(StickyNotesActivity.this) 
+			        .setView(fl)			 
+			        .setTitle("Please enter keyword: ")			 
+			        .setPositiveButton("OK", new DialogInterface.OnClickListener(){			 
+			                @Override			 
+			                public void onClick(DialogInterface d, int which) {			 
+			                        d.dismiss();
+			                        TwitUser = input.getText().toString();
+			                        TwitAccount = "twituser=" + TwitUser;
+			                        d.dismiss();
+			                        disableNdefExchangeMode();
+			                        enableTagWriteMode();
+			                		//enableNdefExchangeMode(TwitAccount);
+			                		new AlertDialog.Builder(StickyNotesActivity.this).setTitle("Touch tag to write")
+			                        .setOnCancelListener(new DialogInterface.OnCancelListener() {
+			                            @Override
+			                            public void onCancel(DialogInterface dialog) {
+			                                disableTagWriteMode();
+			                                enableNdefExchangeMode();
+			                            }
+			                        }).create().show();
+
+			                        
+			                        //enableNdefExchangeMode(TwitAccount);
+			            			//setNoteBody(TwitAccount);
+			                }
+			        })
+			        .setNegativeButton("Cancel", new DialogInterface.OnClickListener(){
+			                @Override
+			                public void onClick(DialogInterface d, int which) {
+			                        d.dismiss();
+			                }
+			        }).create().show();
+		                }
+			        }).create().show();
+		}
+		else{
+			//toast(TwitAccount);
+			final FrameLayout fl = new FrameLayout(this);
+			final EditText input = new EditText(this); 
+			input.setGravity(Gravity.CENTER);
+			fl.addView(input, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.FILL_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+			input.setText("");
+			new AlertDialog.Builder(StickyNotesActivity.this).setTitle("Please choose an option: ")
+            .setPositiveButton("Read", new DialogInterface.OnClickListener(){			 
+			                @Override			 
+			                public void onClick(DialogInterface d, int which) {			 
+			                        d.dismiss();
+			                        //TwitUser = input.getText().toString();
+			                        //TwitAccount = "twituser=" + TwitUser;
+			                        //enableNdefExchangeMode(TwitAccount);
+			            			//setNoteBody(TwitAccount);
+			                }
+			        }).setNegativeButton("Write", new DialogInterface.OnClickListener(){
+		                @Override
+		                public void onClick(DialogInterface d, int which) {
+		                        d.dismiss();
+		               // }
+			        //}).create().show();
+			new AlertDialog.Builder(StickyNotesActivity.this) 
+			        .setView(fl)			 
+			        .setTitle("Use " + TwitUser + " as keyword?")			 
+			        .setNegativeButton("Change Keyword", new DialogInterface.OnClickListener(){			 
+			                @Override			 
+			                public void onClick(DialogInterface d, int which) {			 
+			                        d.dismiss();
+			                        TwitUser = "";
+			                        //if(TwitUser!="Abhi")
+			                        TwitAccount = "twituser=" + TwitUser;
+			                        enableNdefExchangeMode(TwitAccount);
+				            		//setNoteBody(TwitAccount);
+			                        //else{
+			                        	//TwitAccount = "Abhi sucks";
+			                       //}
+			                }
+			        })
+			        .setPositiveButton("Write to Tag", new DialogInterface.OnClickListener(){
+			                @Override
+			                public void onClick(DialogInterface d, int which) {
+			                        d.dismiss();
+			                        disableNdefExchangeMode();
+			                        enableTagWriteMode();
+			                		//enableNdefExchangeMode(TwitAccount);
+			                		new AlertDialog.Builder(StickyNotesActivity.this).setTitle("Touch tag to write")
+			                        .setOnCancelListener(new DialogInterface.OnCancelListener() {
+			                            @Override
+			                            public void onCancel(DialogInterface dialog) {
+			                                disableTagWriteMode();
+			                                enableNdefExchangeMode();
+			                            }
+			                        }).create().show();
+			            			//setNoteBody(TwitAccount);
+			                }
+			        }).create().show();
+			  }
+	        }).create().show();
+		}
+		 
 	} 
 	
 	public void onFoursquareClicked(View view)
 	{  //TODO complete
+		twitterMode = false;
 		toast("foursquare");
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
 	} 
@@ -456,6 +646,7 @@ public class StickyNotesActivity extends Activity {
 	public void onWifiClicked(View view)
 	{  //TODO In Progress
 		wifiMode = true;
+		twitterMode = false;
 		wifiConfigIndex++;
 		List<WifiConfiguration> configs = wifi.getConfiguredNetworks();
         int i = configs.size();
