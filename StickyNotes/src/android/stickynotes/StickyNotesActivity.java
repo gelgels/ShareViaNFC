@@ -509,7 +509,7 @@ public class StickyNotesActivity extends Activity {
 	
 	public void onTwitterClicked(View view)
 	{  //TODO complete
-		toast("twitter");
+		//toast("twitter");
 		twitterMode = true;
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
 		if(TwitAccount == "")
