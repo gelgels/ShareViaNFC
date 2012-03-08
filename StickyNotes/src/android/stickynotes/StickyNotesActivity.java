@@ -24,13 +24,13 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.IntentFilter.MalformedMimeTypeException;
+import android.content.pm.PackageManager;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.AuthAlgorithm;
 import android.net.wifi.WifiConfiguration.GroupCipher;
 import android.net.wifi.WifiConfiguration.KeyMgmt;
 import android.net.wifi.WifiConfiguration.PairwiseCipher;
 import android.net.wifi.WifiConfiguration.Protocol;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.nfc.NdefMessage;
 import android.nfc.NdefRecord;
@@ -77,6 +77,9 @@ public class StickyNotesActivity extends Activity {
 	boolean twitterMode;
 
     
+	String fbID;
+	boolean fbMode;
+	
     PendingIntent mNfcPendingIntent;
     IntentFilter[] mWriteTagFilters;
     IntentFilter[] mNdefExchangeFilters;
@@ -104,7 +107,9 @@ public class StickyNotesActivity extends Activity {
         TwitAccount = ""; //this will set your saved Twitter account to nothing when started
 	twitterMode = false;
 	
-	
+        fbID = "";
+        fbMode = false;
+        
         if (mNfcAdapter != null) //device NFC capable
         {
 	        mNote.addTextChangedListener(mTextWatcher);
@@ -160,7 +165,7 @@ public class StickyNotesActivity extends Activity {
         }
 
         // Tag writing mode
-        if (mWriteMode && !twitterMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) 
+        if (mWriteMode && !twitterMode && !fbMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) 
         {
             Tag detectedTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
             //TODO: Decide button context handling scheme
@@ -172,12 +177,11 @@ public class StickyNotesActivity extends Activity {
         } if (mWriteMode && twitterMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) 
         {
             Tag detectedTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
-            //TODO: Decide button context handling scheme
-            //We need some kind of context switch here or inside getNoteAsNdef
-            //As it is, what is written in the note gets packed into the NDEF payload. 
-            // Ideally, if we're passing facebook/twitter/4square/wifi info across, we dont
-            //		want that stuff visible to the user and inside the note. 
             writeTag(getNoteAsNdef(TwitAccount), detectedTag);
+        } if (mWriteMode && fbMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) 
+        {
+            Tag detectedTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+            writeTag(getNoteAsNdef(fbID), detectedTag);
         }
     }
 
@@ -200,6 +204,16 @@ public class StickyNotesActivity extends Activity {
             }
         }
     };
+    
+    private void openFb(String user)
+    {
+    	//opens user profile in fb application  **NOT TESTED, but should work**
+    	Intent intent = new Intent(Intent.ACTION_VIEW);
+    	intent.setClassName("com.facebook.katana", "com.facebook.katana.ProfileTabHostActivity");
+    	intent.putExtra("extra_user_id", user);	//currently myself
+    	this.startActivity(intent);
+    }
+    
    private void getTweets(String twit)
     {
     	wifi.setWifiEnabled(true);
@@ -222,7 +236,8 @@ public class StickyNotesActivity extends Activity {
            textStatus.append("Failed to search tweets: " + te.getMessage() + " " + twit);
         }
     }
-    private void promptForContent(final NdefMessage msg) {
+    
+   private void promptForContent(final NdefMessage msg) {
         new AlertDialog.Builder(this).setTitle("Replace current content?")
             .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                 @Override
@@ -233,6 +248,11 @@ public class StickyNotesActivity extends Activity {
                     {
                     	String twitUse = body.substring(9);
                     	getTweets(twitUse);
+                    }
+                    if(body.contains("fbuser=") && fbMode)
+                    {
+                    	String fbUse = body.substring(7);
+                    	openFb(fbUse);
                     }
                     if(!twitterMode)	
                     	setNoteBody(body);
@@ -509,8 +529,39 @@ public class StickyNotesActivity extends Activity {
 	public void onFacebookClicked(View view)
 	{  //TODO complete
 		twitterMode = false;
-		toast("facebook");
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
+			
+		//checks if Facebook application is installed
+    	PackageManager pm = getPackageManager();
+    	boolean installed = false;
+    	try {
+    		pm.getPackageInfo("com.facebook.katana", PackageManager.GET_ACTIVITIES);
+    		installed = true;
+    	} catch (PackageManager.NameNotFoundException e) {
+    		 installed = false;
+    	}
+    		
+    	if (installed) {
+    		fbMode = true;
+    		fbID = "fbuser=655652616";  //TODO change... currently nancy's
+    		
+    /*		disableNdefExchangeMode();
+            enableTagWriteMode();
+    		//enableNdefExchangeMode(TwitAccount);
+    		new AlertDialog.Builder(StickyNotesActivity.this).setTitle("Touch tag to write")
+            .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                @Override
+                public void onCancel(DialogInterface dialog) {
+                    disableTagWriteMode();
+                    enableNdefExchangeMode();
+                }
+            }).create().show();
+   */
+    	}
+    	else {
+    		toast("The Facebook application must be installed.");
+    		fbMode = false;
+    	}
 	}  
 	
 	public void onTwitterClicked(View view)
@@ -518,6 +569,7 @@ public class StickyNotesActivity extends Activity {
 		//toast("twitter");
 		twitterMode = true;
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
+        fbMode = false;
 		if(TwitAccount == "")
 		{
 			//textStatus.setText("Twitter account name not stored!\n");
@@ -645,6 +697,7 @@ public class StickyNotesActivity extends Activity {
 	public void onFoursquareClicked(View view)
 	{  //TODO complete
 		twitterMode = false;
+        fbMode = false;
 		toast("foursquare");
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
 	} 
@@ -653,6 +706,7 @@ public class StickyNotesActivity extends Activity {
 	{  //TODO In Progress
 		wifiMode = true;
 		twitterMode = false;
+        fbMode = false;
 		wifiConfigIndex++;
 		List<WifiConfiguration> configs = wifi.getConfiguredNetworks();
         int i = configs.size();
