@@ -569,10 +569,7 @@ public class StickyNotesActivity extends Activity {
 	{  //TODO complete
 		wifiMode = false;
 		twitterMode = false;
-		
-		//fbID = "fbuser=";  
-		//fbUser = "655652616";
-		//setNoteBody(fbID+fbUser);
+		textStatus.setText("Choose your mode or write a message!");
 
 		fbUser = myPrefs.getString(MY_USERNAME, "username");
 		
@@ -842,6 +839,7 @@ public class StickyNotesActivity extends Activity {
 	{  //TODO complete
 		twitterMode = false;
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
+		textStatus.setText("Choose your mode or write a message!");
 		startActivityForResult(new Intent(this, FoursqActivity.class), PICK_VENUE_RESULT);
 
 		
