@@ -483,36 +483,39 @@ public class StickyNotesActivity extends Activity {
         	return 0;
         }
         
-        toast("Made it through");
+        
         String password = text.substring(0, text.indexOf("\n"));
+        textStatus.append("pass::"+ password +":");
         text = text.substring(text.indexOf("\n")+1);
-     
+        
         String ssid = text.substring(text.indexOf("SSID:") + 6, text.indexOf("BSSID:") - 1);
         wc.SSID = ssid;
-        
+        textStatus.append(ssid + "\n");
         String bssid = text.substring(text.indexOf("BSSID:") + 7, text.indexOf("PRIO:") - 1);
-        if(bssid.equals("null"))
-        	wc.BSSID = "";
-        else
-        	wc.BSSID = bssid;
-        
+       // if(bssid.equals("null"))
+        //	wc.BSSID = "";
+        //else
+        	//wc.BSSID = bssid;
+        textStatus.append(bssid + "\n");
         
         int prio = Integer.parseInt(text.substring(text.indexOf("PRIO:") + 6, text.indexOf("\n")));
         wc.priority = prio;
         text = text.substring(text.indexOf("\n")+1);
-        
+        textStatus.append("" + prio + "\n");
         String keymgmt = text.substring(0, text.indexOf("Protocols:"));
         if(keymgmt.contains("NONE"))
         	wc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
         else if(keymgmt.contains("WPA"))
         	wc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        textStatus.append(keymgmt + "\n");
         
         String protocols = text.substring(text.indexOf("Protocols: "), text.indexOf("\n Auth"));
         if(protocols.contains("WPA"))
         	wc.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
         if(protocols.contains("RSN"))
-    	wc.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
-       
+        	wc.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
+        textStatus.append(protocols + "\n");
+        
         text = text.substring(text.indexOf("\n Auth")+1);
         String authalg = text.substring(0,text.indexOf("\n Pairwise"));
         
@@ -521,8 +524,11 @@ public class StickyNotesActivity extends Activity {
         if(authalg.contains("SHARED"))
         	wc.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.SHARED);
         
+        textStatus.append(authalg + "\n");
+        
         text = text.substring(text.indexOf("\n Pairwise")+1);
         String pairwise = text.substring(0,text.indexOf("\n Group"));
+        textStatus.append(pairwise + "\n");
         
         if(pairwise.contains("CCMP"))
         	wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
@@ -531,27 +537,29 @@ public class StickyNotesActivity extends Activity {
         
         text = text.substring(text.indexOf("\n Group")+1);
         String groupcipher = text.substring(0,text.indexOf("\n PSK"));
+        textStatus.append(groupcipher + "\n");
         
         if(groupcipher.contains("WEP40"))
         	 wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.WEP40);
-        if(groupcipher.contains("WEP40"))
+        if(groupcipher.contains("WEP104"))
         	wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.WEP104);
-        if(groupcipher.contains("WEP40"))
+        if(groupcipher.contains("CCMP"))
         	wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
-        if(groupcipher.contains("WEP40"))
+        if(groupcipher.contains("TKIP"))
         	wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP);
         wc.hiddenSSID = false;
         wc.status = WifiConfiguration.Status.DISABLED;     
 
-        //wc.wepKeys[0] = "\"" + password + "\""; //This is the WEP Password
-       // wc.wepTxKeyIndex = 0;
+        wc.wepKeys[0] = password; //This is the WEP Password
+        wc.wepTxKeyIndex = 0;
         
-        //textStatus.setText(wc.toString());
+        textStatus.append(wc.toString());
         
+
         //WifiManager  wifiManag = (WifiManager) this.getSystemService(WIFI_SERVICE);
         boolean res1 = wifi.setWifiEnabled(true);
         int res = wifi.addNetwork(wc);
-        toast("add Network returned " + res + "enabled: " + res1 + "\n");
+        textStatus.append("add Network returned " + res + "enabled: " + res1 + "\n");
         boolean es = wifi.saveConfiguration();
         toast("saveConfiguration returned " + es +"\n");
         boolean b = wifi.enableNetwork(res, true);   
