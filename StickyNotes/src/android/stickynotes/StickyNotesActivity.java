@@ -570,6 +570,7 @@ public class StickyNotesActivity extends Activity {
 		wifiMode = false;
 		twitterMode = false;
 		textStatus.setText("Choose your mode or write a message!");
+		setNoteBody("");
 
 		fbUser = myPrefs.getString(MY_USERNAME, "username");
 		
@@ -684,6 +685,9 @@ public class StickyNotesActivity extends Activity {
 		//toast("twitter");
 		twitterMode = true;
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
+		textStatus.setText("Choose your mode or write a message!");
+		setNoteBody("");
+		
 		if(TwitAccount == "")
 		{
 			//textStatus.setText("Twitter account name not stored!\n");
@@ -840,6 +844,7 @@ public class StickyNotesActivity extends Activity {
 		twitterMode = false;
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
 		textStatus.setText("Choose your mode or write a message!");
+		setNoteBody("");
 		startActivityForResult(new Intent(this, FoursqActivity.class), PICK_VENUE_RESULT);
 
 		
