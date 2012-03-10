@@ -24,12 +24,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.IntentFilter.MalformedMimeTypeException;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.stickynotes.MyLocation.LocationResult;
 
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiConfiguration.AuthAlgorithm;
@@ -52,14 +48,10 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 
-import android.widget.ArrayAdapter;
-
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ListView;
-
 import java.io.IOException;
 import java.util.List;
 
@@ -72,26 +64,16 @@ import twitter4j.TwitterFactory;
 import twitter4j.conf.ConfigurationBuilder;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.StringWriter;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpHead;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 public class StickyNotesActivity extends Activity {
 	static final int PICK_VENUE_RESULT = 0;
+	
     private static final String TAG = "stickynotes";	//for logging
+    private final String MY_USERNAME = "username";
+    private SharedPreferences myPrefs;
+    
     private boolean mResumed = false;
     private boolean mWriteMode = false;
     NfcAdapter mNfcAdapter;
@@ -105,9 +87,8 @@ public class StickyNotesActivity extends Activity {
 	String TwitUser;
 	boolean twitterMode;
 
-    
 	String fbID;
-	boolean fbMode;
+	String fbUser;
 	
     PendingIntent mNfcPendingIntent;
     IntentFilter[] mWriteTagFilters;
@@ -118,6 +99,7 @@ public class StickyNotesActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
+        myPrefs = this.getSharedPreferences("myPrefs", MODE_WORLD_READABLE);
         setContentView(R.layout.mainscreen);
         
         if (mNfcAdapter == null)
@@ -134,10 +116,9 @@ public class StickyNotesActivity extends Activity {
         mNote = ((EditText) findViewById(R.id.note));
 		
         TwitAccount = ""; //this will set your saved Twitter account to nothing when started
-	twitterMode = false;
+        twitterMode = false;
 	
         fbID = "";
-        fbMode = false;
         
         if (mNfcAdapter != null) //device NFC capable
         {
@@ -194,7 +175,7 @@ public class StickyNotesActivity extends Activity {
         }
 
         // Tag writing mode
-        if (mWriteMode && !twitterMode && !fbMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) 
+        if (mWriteMode && !twitterMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) 
         {
             Tag detectedTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
             //TODO: Decide button context handling scheme
@@ -207,10 +188,6 @@ public class StickyNotesActivity extends Activity {
         {
             Tag detectedTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
             writeTag(getNoteAsNdef(TwitAccount), detectedTag);
-        } if (mWriteMode && fbMode && NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction())) 
-        {
-            Tag detectedTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
-            writeTag(getNoteAsNdef(fbID), detectedTag);
         }
     }
 
@@ -236,11 +213,26 @@ public class StickyNotesActivity extends Activity {
     
     private void openFb(String user)
     {
-    	//opens user profile in fb application  **NOT TESTED, but should work**
-    	Intent intent = new Intent(Intent.ACTION_VIEW);
-    	intent.setClassName("com.facebook.katana", "com.facebook.katana.ProfileTabHostActivity");
-    	intent.putExtra("extra_user_id", user);	//currently myself
-    	this.startActivity(intent);
+    	//checks if Facebook application is installed
+    	PackageManager pm = getPackageManager();
+    	boolean installed = false;
+    	try {
+    		pm.getPackageInfo("com.facebook.katana", PackageManager.GET_ACTIVITIES);
+    		installed = true;
+    	} catch (PackageManager.NameNotFoundException e) {
+    		 installed = false;
+    	}
+    	
+    	if (installed) {
+	    	//opens user profile in fb application
+	    	Intent intent = new Intent(Intent.ACTION_VIEW);
+	    	intent.setClassName("com.facebook.katana", "com.facebook.katana.ProfileTabHostActivity");
+	    	intent.putExtra("extra_user_id", user);
+	    	this.startActivity(intent);
+    	}
+    	else {
+    		toast("FAILED: The Facebook application must be installed.");
+    	}
     }
     
    private void getTweets(String twit)
@@ -278,12 +270,12 @@ public class StickyNotesActivity extends Activity {
                     	String twitUse = body.substring(9);
                     	getTweets(twitUse);
                     }
-                    if(body.contains("fbuser=") && fbMode)
+                    if(body.contains("fbuser="))
                     {
                     	String fbUse = body.substring(7);
                     	openFb(fbUse);
                     }
-                    if(!twitterMode)	
+                    if(!twitterMode && !body.contains("fbuser="))	
                     	setNoteBody(body);
                 }
             })
@@ -575,40 +567,119 @@ public class StickyNotesActivity extends Activity {
     /**implementing buttons*/
 	public void onFacebookClicked(View view)
 	{  //TODO complete
+		wifiMode = false;
 		twitterMode = false;
-		wifiMode = false; // This is only temporary until we decide a context handling thingy
-			
-		//checks if Facebook application is installed
-    	PackageManager pm = getPackageManager();
-    	boolean installed = false;
-    	try {
-    		pm.getPackageInfo("com.facebook.katana", PackageManager.GET_ACTIVITIES);
-    		installed = true;
-    	} catch (PackageManager.NameNotFoundException e) {
-    		 installed = false;
-    	}
-    		
-    	if (installed) {
-    		fbMode = true;
-    		fbID = "fbuser=655652616";  //TODO change... currently nancy's
-    		
-    /*		disableNdefExchangeMode();
-            enableTagWriteMode();
-    		//enableNdefExchangeMode(TwitAccount);
-    		new AlertDialog.Builder(StickyNotesActivity.this).setTitle("Touch tag to write")
-            .setOnCancelListener(new DialogInterface.OnCancelListener() {
-                @Override
-                public void onCancel(DialogInterface dialog) {
-                    disableTagWriteMode();
-                    enableNdefExchangeMode();
-                }
-            }).create().show();
-   */
-    	}
-    	else {
-    		toast("The Facebook application must be installed.");
-    		fbMode = false;
-    	}
+		
+		//fbID = "fbuser=";  
+		//fbUser = "655652616";
+		//setNoteBody(fbID+fbUser);
+
+		fbUser = myPrefs.getString(MY_USERNAME, "username");
+		
+		final FrameLayout fl = new FrameLayout(this);
+		final EditText input = new EditText(this); 
+		input.setGravity(Gravity.CENTER);
+		fl.addView(input, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.FILL_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+		input.setText("");
+		
+		if(fbUser.equals("username"))
+        {
+			new AlertDialog.Builder(StickyNotesActivity.this) 
+	        .setView(fl)			 
+	        .setTitle("Please enter facebook id: ")			 
+	        .setPositiveButton("OK", new DialogInterface.OnClickListener(){			 
+	                @Override			 
+	                public void onClick(DialogInterface d, int which) {			 
+	                        d.dismiss();
+	                        fbUser = input.getText().toString();
+	                        
+	                        //store user information
+	       				 	SharedPreferences.Editor prefsEditor = myPrefs.edit();
+	       				 	prefsEditor.putString(MY_USERNAME, fbUser);
+	       				 	prefsEditor.commit();
+	       			     
+	                        fbID = "fbuser=" + fbUser;
+
+	                        disableNdefExchangeMode();
+	                		enableNdefExchangeMode(fbID);
+	                		new AlertDialog.Builder(StickyNotesActivity.this).setTitle("Touch phones to friend")
+	                        .setOnCancelListener(new DialogInterface.OnCancelListener() {
+	                            @Override
+	                            public void onCancel(DialogInterface dialog) {
+	                            	disableNdefExchangeMode();
+	                                enableNdefExchangeMode();
+	                            }
+	                        }).create().show();
+	                }
+	        })
+	        .setNegativeButton("Cancel", new DialogInterface.OnClickListener(){
+	                @Override
+	                public void onClick(DialogInterface d, int which) {
+	                        d.dismiss();
+	                }
+	        }).create().show();
+		}
+		else	//username previously saved
+		{
+			new AlertDialog.Builder(StickyNotesActivity.this) 
+	        .setTitle("Use "+fbUser+"?")			 
+	        .setPositiveButton("Yes", new DialogInterface.OnClickListener(){			 
+	                @Override			 
+	                public void onClick(DialogInterface d, int which) {			 
+	                        d.dismiss();
+	                        disableNdefExchangeMode();
+	                		enableNdefExchangeMode(fbID);
+	                		new AlertDialog.Builder(StickyNotesActivity.this).setTitle("Touch phones to friend")
+	                        .setOnCancelListener(new DialogInterface.OnCancelListener() {
+	                            @Override
+	                            public void onCancel(DialogInterface dialog) {
+	                            	disableNdefExchangeMode();
+	                                enableNdefExchangeMode();
+	                            }
+	                        }).create().show();
+	                }
+	        })
+	        .setNegativeButton("No", new DialogInterface.OnClickListener(){
+	                @Override
+	                public void onClick(DialogInterface d, int which) {
+	                        d.dismiss();
+	                        new AlertDialog.Builder(StickyNotesActivity.this) 
+	            	        .setView(fl)			 
+	            	        .setTitle("Please enter facebook id: ")			 
+	            	        .setPositiveButton("OK", new DialogInterface.OnClickListener(){			 
+	            	                @Override			 
+	            	                public void onClick(DialogInterface d, int which) {			 
+	            	                        d.dismiss();
+	            	                        fbUser = input.getText().toString();
+	            	                        
+	            	                        //store user information
+	            	       				 	SharedPreferences.Editor prefsEditor = myPrefs.edit();
+	            	       				 	prefsEditor.putString(MY_USERNAME, fbUser);
+	            	       				 	prefsEditor.commit();
+	            	       			     
+	            	                        fbID = "fbuser=" + fbUser;
+
+	            	                        disableNdefExchangeMode();
+	            	                		enableNdefExchangeMode(fbID);
+	            	                		new AlertDialog.Builder(StickyNotesActivity.this).setTitle("Touch phones to friend")
+	            	                        .setOnCancelListener(new DialogInterface.OnCancelListener() {
+	            	                            @Override
+	            	                            public void onCancel(DialogInterface dialog) {
+	            	                            	disableNdefExchangeMode();
+	            	                                enableNdefExchangeMode();
+	            	                            }
+	            	                        }).create().show();
+	            	                }
+	            	        })
+	            	        .setNegativeButton("Cancel", new DialogInterface.OnClickListener(){
+	            	                @Override
+	            	                public void onClick(DialogInterface d, int which) {
+	            	                        d.dismiss();
+	            	                }
+	            	        }).create().show();
+	                }
+	        }).create().show();
+		}
 	}  
 	
 	public void onTwitterClicked(View view)
@@ -616,7 +687,6 @@ public class StickyNotesActivity extends Activity {
 		//toast("twitter");
 		twitterMode = true;
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
-        fbMode = false;
 		if(TwitAccount == "")
 		{
 			//textStatus.setText("Twitter account name not stored!\n");
@@ -771,7 +841,6 @@ public class StickyNotesActivity extends Activity {
 	public void onFoursquareClicked(View view)
 	{  //TODO complete
 		twitterMode = false;
-        fbMode = false;
 		wifiMode = false; // This is only temporary until we decide a context handling thingy
 		startActivityForResult(new Intent(this, FoursqActivity.class), PICK_VENUE_RESULT);
 
@@ -851,7 +920,6 @@ public class StickyNotesActivity extends Activity {
 	{  //TODO In Progress
 		wifiMode = true;
 		twitterMode = false;
-        fbMode = false;
 		wifiConfigIndex++;
 		List<WifiConfiguration> configs = wifi.getConfiguredNetworks();
         int i = configs.size();
