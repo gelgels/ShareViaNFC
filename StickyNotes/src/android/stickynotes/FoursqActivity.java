@@ -53,8 +53,8 @@ public class FoursqActivity extends Activity {
         setContentView(R.layout.foursqview);
        
         LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);    
-        Location location = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);  
- //       Location location = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);  
+ //       Location location = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);  
+       Location location = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);  
 
         if(location == null){
             toast("Sorry, could not fetch your location");

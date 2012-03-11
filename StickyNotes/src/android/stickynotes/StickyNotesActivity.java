@@ -250,7 +250,7 @@ public class StickyNotesActivity extends Activity {
             textStatus.setText("");
            	textStatus.append("Recent tweets about '"+twit+"':\n");
             for (Tweet tweet : tweets) {
-                textStatus.append("@" + tweet.getFromUser() + " - " + tweet.getText() +"sdg\n\n");
+                textStatus.append("@" + tweet.getFromUser() + " - " + tweet.getText() +"\n\n");
             }
         } catch (TwitterException te) {
             te.printStackTrace();
